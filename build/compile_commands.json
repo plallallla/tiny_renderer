@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/Users/peng/repo/tiny_renderer/build",
+  "command": "/usr/bin/clang++  -I/Users/peng/repo/tiny_renderer/include -g -arch arm64 -o CMakeFiles/tiny_renderer.dir/hello_part_0/main.cpp.o -c /Users/peng/repo/tiny_renderer/hello_part_0/main.cpp",
+  "file": "/Users/peng/repo/tiny_renderer/hello_part_0/main.cpp",
+  "output": "CMakeFiles/tiny_renderer.dir/hello_part_0/main.cpp.o"
+}
+]

@@ -1,0 +1,1 @@
+/usr/bin/clang++ -g -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/tiny_renderer.dir/hello_part_0/main.cpp.o -o tiny_renderer
