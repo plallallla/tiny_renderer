@@ -164,10 +164,9 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
         std::swap(ay, by);
     }
     int y = ay;
-    int ierror = 0;
+    int d = 1 - 2 * abs(by - ay);//D0 = 1 - 2*dy
     for (int x = ax; x <= bx; x++)
     {
-
         if (steep) // 绘制
         {
             framebuffer.set(y, x, color);
@@ -176,17 +175,11 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
         {
             framebuffer.set(x, y, color);
         }
-        int y = ay;
-        int ierror = 0;
-        for (int x = ax; x <= bx; x++)
+        d -= 2 * abs(by - ay);//D0 > 0时,D1 = D0 - 2dy, y方向不变
+        if (d < 0)//D0 < 0时,D1 = D0 + 2dx - 2dy,y方向上进一
         {
-            if (steep) // if transposed, de−transpose
-                framebuffer.set(y, x, color);
-            else
-                framebuffer.set(x, y, color);
-            ierror += 2 * std::abs(by - ay);
-            y += (by > ay ? 1 : -1) * (ierror > bx - ax);
-            ierror -= 2 * (bx - ax) * (ierror > bx - ax);
+            y += (by > ay ? 1 : -1);
+            d += 2 * bx - ax;
         }
     }
 }
