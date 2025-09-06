@@ -150,6 +150,76 @@ void line_5(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor colo
     }
 }
 
+//以下函数推导，详见README
+
+void line_mid(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
+{
+    bool steep = std::abs(ax - bx) < std::abs(ay - by);
+    if (steep)
+    { // if the line is steep, we transpose the image
+        std::swap(ax, ay);
+        std::swap(bx, by);
+    }
+    if (ax > bx)
+    { // make it left−to−right
+        std::swap(ax, bx);
+        std::swap(ay, by);
+    }
+    int y = ay;
+    int d = 1 - 2 * abs(by - ay); // D0 = 1 - 2*dy
+    for (int x = ax; x <= bx; x++)
+    {
+        if (steep) // 绘制
+        {
+            framebuffer.set(y, x, color);
+        }
+        else
+        {
+            framebuffer.set(x, y, color);
+        }
+        d -= 2 * abs(by - ay); // D0 > 0时,D1 = D0 - 2dy, y方向不变
+        if (d < 0)             // D0 < 0时,D1 = D0 + 2dx - 2dy,y方向上进一
+        {
+            y += (by > ay ? 1 : -1);
+            d += 2 * bx - ax;
+        }
+    }
+}
+
+void line_d(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
+{
+    bool steep = std::abs(ax - bx) < std::abs(ay - by);
+    if (steep)
+    { // if the line is steep, we transpose the image
+        std::swap(ax, ay);
+        std::swap(bx, by);
+    }
+    if (ax > bx)
+    { // make it left−to−right
+        std::swap(ax, bx);
+        std::swap(ay, by);
+    }
+    int y = ay;
+    int d = 1 - 2 * abs(by - ay); // D0 = 1 - 2*dy
+    for (int x = ax; x <= bx; x++)
+    {
+        if (steep) // 绘制
+        {
+            framebuffer.set(y, x, color);
+        }
+        else
+        {
+            framebuffer.set(x, y, color);
+        }
+        d -= 2 * abs(by - ay); // D0 > 0时,D1 = D0 - 2dy, y方向不变
+        if (d < 0)             // D0 < 0时,D1 = D0 + 2dx - 2dy,y方向上进一
+        {
+            y += (by > ay ? 1 : -1);
+            d += 2 * bx - ax;
+        }
+    }
+}
+
 void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
 {
     bool steep = std::abs(ax - bx) < std::abs(ay - by);
@@ -164,7 +234,7 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
         std::swap(ay, by);
     }
     int y = ay;
-    int d = 1 - 2 * abs(by - ay);//D0 = 1 - 2*dy
+    int e = -1 * (bx - ax);
     for (int x = ax; x <= bx; x++)
     {
         if (steep) // 绘制
@@ -175,13 +245,18 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
         {
             framebuffer.set(x, y, color);
         }
-        d -= 2 * abs(by - ay);//D0 > 0时,D1 = D0 - 2dy, y方向不变
-        if (d < 0)//D0 < 0时,D1 = D0 + 2dx - 2dy,y方向上进一
+        e += 2 * abs(by - ay);
+        if (e > 0)
         {
             y += (by > ay ? 1 : -1);
-            d += 2 * bx - ax;
+            e -= 2 * (bx - ax);
         }
     }
+}
+
+void homework()
+{
+
 }
 
 int main(int argc, char** argv)
@@ -203,8 +278,10 @@ int main(int argc, char** argv)
     framebuffer.set(bx, by, white);
     framebuffer.set(cx, cy, white);
 
-    framebuffer.write_tga_file("framebuffer.tga");
-    system("open framebuffer.tga");
+    // framebuffer.write_tga_file("framebuffer.tga");
+    // system("open framebuffer.tga");
+
+    homework();
 
     return 0;
 }

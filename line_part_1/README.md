@@ -9,7 +9,7 @@
 对于一般如下的直线公式
 $$
 f(x,y) = y - kx - b\\
-k = \frac{\Delta x}{\Delta y}
+k = \frac{\Delta y}{\Delta x}
 $$
 我们记起点为
 $$
@@ -62,13 +62,13 @@ d_0=0.5-k\\
 d_n-k, & d_n > 0 \\
 d_n+1-k, & d_n \leq 0
 \end{cases}\\
-\text y_{n+1} = 
+y_{n+1} = 
 \begin{cases}
 y_n, & d_n > 0 \\
 y_n+1, & d_n \leq 0
 \end{cases}
 $$
-对应实际代码中，我们再考虑上面的递推关系，不难发现其中的0.5与k都是需要进行除法运算，而我们始终只要进行考虑中点值的正负，因此可以考虑将中点值放大，记作D
+对应实际代码中，我们再考虑上面的递推关系，不难发现其中的0.5与k都是需要进行除法运算，而我们始终只要进行考虑中点值的正负，因此可以考虑根据直线函数，公式（1）将中点值放大，记作D
 $$
 D=d * 2 * \Delta k\\
 $$
@@ -80,7 +80,7 @@ D_0=1-2\Delta y\\
 D_n-2\Delta y, & d_n > 0 \\
 D_n+2\Delta x-2\Delta y, & d_n \leq 0
 \end{cases}\\
-\text y_{n+1} = 
+y_{n+1} = 
 \begin{cases}
 y_n, & D_n > 0 \\
 y_n+1, & D_n \leq 0
@@ -110,3 +110,107 @@ $$
     }
 ```
 
+### 2.偏差值推导
+
+如果考虑Y轴上实际的步进方向，那么根据直线函数，公式（1），有如下递推关系
+$$
+x_{n+1}=x_n+1\\
+y_{n+1}=y_n+k
+$$
+可以看到，Y轴上每次的步进大小均为k，如果用d表示实际交点在Y轴上的偏差，则有
+$$
+d_0=0\\
+d_{n+1}=d_n+k
+$$
+考虑从起点出发后的第一个点
+$$
+(x_0,y_0) \to (x_1,y_1)=(x_0+1,y_0+d_1)=(x_0+1,y_0+k)
+$$
+当d>0.5时，说明交点偏上，应取上一个点，反之取下面的点
+$$
+y_1 = 
+\begin{cases}
+y_0+1, &d_1>0.5\\
+y_0, &d_1\le0.5
+\end{cases}
+$$
+但当我们考虑再下一个点时，会发现，若d>0.5时，则在后续递增，d会始终大于0.5，每一步都会在Y轴上递进，此时我们需要将d进行修正，最终d的递推关系如下
+$$
+d_0=0\\
+d_{n+1}=
+\begin{cases}
+d_n+k-1, &d_n>0.5\\
+d_n+k, &d_n\le0.5
+\end{cases}
+$$
+对应实际代码中，我们同样可以对d进行调整，从而优化到整数计算，同样将偏差值放大2*dx，记作D，此时
+$$
+D_0=0\\
+D_{n+1}=
+\begin{cases}
+D_n+2\Delta y-2\Delta x, &D_n>\Delta x\\
+D_n+2\Delta y, &D_n\le\Delta x
+\end{cases}\\
+y_{n+1} = 
+\begin{cases}
+y_n+1, & D_n > \Delta x \\
+y_n, & D_n \leq \Delta x
+\end{cases}
+$$
+对应代码如下
+
+```c++
+    int y = ay;
+    int d = 0;//考虑Y轴上的偏差值D
+    for (int x = ax; x <= bx; x++)
+    {
+        if (steep)//绘制
+        {
+            framebuffer.set(y, x, color);
+        }
+        else
+        {
+            framebuffer.set(x, y, color);
+        }
+        d += 2 * abs(by - ay);
+        if (d > bx - by)//D > dx，此时需要步进
+        {
+            y += (by > ay ? 1 : -1);
+            d -= 2 * (bx - ax);//步进后对偏差值作修正
+        }
+    }
+```
+
+实际开发过程中，我们还可以将dx移项，记作E，使得偏差值最终与0比较大小，参考如下
+$$
+E_0=-\Delta x\\
+E_{n+1}=
+\begin{cases}
+E_n+2\Delta y-2\Delta x, &E_n>0\\
+E_n+2\Delta y, &E_n\le0\end{cases}\\
+y_{n+1} = \begin{cases}
+y_n+1, & E_n>0\\
+y_n, & E_n\le0\end{cases}
+$$
+对应代码如下
+```C++
+    int y = ay;
+    int e = -1 * (bx - ax);
+    for (int x = ax; x <= bx; x++)
+    {
+        if (steep)//绘制
+        {
+            framebuffer.set(y, x, color);
+        }
+        else
+        {
+            framebuffer.set(x, y, color);
+        }
+        e += 2 * abs(by - ay);
+        if (e > 0)
+        {
+            y += (by > ay ? 1 : -1);
+            e -= 2 * (bx - ax);
+        }
+    }
+```
