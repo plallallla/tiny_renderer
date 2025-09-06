@@ -285,8 +285,8 @@ void homework()
         project(x, y, model.vert(i)); // project it to the screen
         framebuffer.set(x, y, white);
     }
-    framebuffer.write_tga_file("framebuffer.tga");
-    system("open framebuffer.tga");
+    framebuffer.write_tga_file("african_head_framebuffer.tga");
+    system("open african_head_framebuffer.tga");
 }
 
 int main(int argc, char** argv)
