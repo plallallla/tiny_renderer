@@ -150,7 +150,7 @@ void line_5(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor colo
     }
 }
 
-//以下函数推导，详见README
+// 以下函数推导，详见README
 
 void line_mid(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
 {
@@ -254,9 +254,39 @@ void line(int ax, int ay, int bx, int by, TGAImage& framebuffer, TGAColor color)
     }
 }
 
+#include "geometry.hpp"
+void project(int& x, int& y, vec4 v)
+{ // First of all, (x,y) is an orthogonal projection of the vector (x,y,z).
+    x = (v.x + 1.) * 500;
+    y = (v.y + 1.) * 500;
+}
+
+#include "model.hpp"
 void homework()
 {
+    Model model("../obj/african_head/african_head.obj");
+    TGAImage framebuffer(1000, 1000, TGAImage::RGB);
 
+    for (int i = 0; i < model.nfaces(); i++)
+    { // iterate through all triangles
+        int ax, ay;
+        project(ax, ay, model.vert(i, 0));
+        int bx, by;
+        project(bx, by, model.vert(i, 1));
+        int cx, cy;
+        project(cx, cy, model.vert(i, 2));
+        line(ax, ay, bx, by, framebuffer, red);
+        line(bx, by, cx, cy, framebuffer, red);
+        line(cx, cy, ax, ay, framebuffer, red);
+    }
+    for (int i = 0; i < model.nverts(); i++)
+    { // iterate through all vertices
+        int x, y;
+        project(x, y, model.vert(i)); // project it to the screen
+        framebuffer.set(x, y, white);
+    }
+    framebuffer.write_tga_file("framebuffer.tga");
+    system("open framebuffer.tga");
 }
 
 int main(int argc, char** argv)
