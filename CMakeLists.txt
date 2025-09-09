@@ -6,4 +6,5 @@ include_directories(include)
 add_executable(hello part_0_hello/main.cpp)
 add_executable(line part_1_line/main.cpp)
 add_executable(triangle part_2_triangle/main.cpp)
+add_executable(zbuffer part_3_zbuffer/main.cpp)
 
