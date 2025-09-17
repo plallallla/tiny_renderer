@@ -1,11 +1,14 @@
-#include "my_gl.h"
-#include <algorithm>
-#include <vector>
+#pragma once
+#include "BaseShader.h"
 
-mat<4, 4> ModelView, Viewport, Perspective; // "OpenGL" state matrices
-std::vector<double> zbuffer;                // depth buffer
+using Triangle = std::array<vec4, 3>;
 
-void rasterize(const Triangle& clip, const IShader& shader, TGAImage& framebuffer)
+// 变换矩阵
+mat<4, 4> ModelView, Perspective, Viewport;
+// 深度缓存
+std::vector<double> zbuffer;
+
+inline void rasterize(const Triangle& clip, const BaseShader& shader, TGAImage& framebuffer)
 {
     vec4 ndc[3] = 
     {

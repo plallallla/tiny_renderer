@@ -10,4 +10,7 @@ add_executable(zbuffer part_3_zbuffer/main.cpp)
 add_executable(camera part_4_camera/main.cpp)
 add_executable(shading part_5_shading/main.cpp part_5_shading/my_gl.cpp)
 
+file(GLOB SOURCES "part_6_texture/*.cpp")
+add_executable(tex ${SOURCES})
+
 

@@ -1,11 +1,13 @@
 #pragma once
-#include "tgaimage.hpp"
 #include "geometry.hpp"
+#include "tgaimage.hpp"
 #include <array>
 
-struct IShader {
-    virtual std::pair<bool,TGAColor> fragment(const vec3 bar) const = 0;
+struct IShader
+{
+    virtual vec4 vertex(const int face, const int vert) = 0;
+    virtual std::pair<bool, TGAColor> fragment(const vec3 bar) const = 0;
 };
 
-typedef std::array<vec4, 3> Triangle; // a triangle primitive is made of three ordered points
-void rasterize(const Triangle &clip, const IShader &shader, TGAImage &framebuffer);
+using Triangle = std::array<vec4, 3>; // a triangle primitive is made of three ordered points
+void rasterize(const Triangle& clip, const IShader& shader, TGAImage& framebuffer);

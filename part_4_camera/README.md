@@ -194,3 +194,98 @@ $$
 ##### 附.1
 
 观察2.1与2.2的变换矩阵，我们可以看到他们有一些相似之处，这是因为坐标平移本质上可以看作上更高一维上切变后在原维度的投影，也就是说，二维的平移与三维的切变可以在某个视角下是等价的，参考[pikuma](https://www.youtube.com/@pikuma)的视频[Math for Game Developers: Why do we use 4x4 Matrices in 3D Graphics?](https://www.youtube.com/watch?v=Do_vEjd6gF0&list=PLYnrabpSIM-97qGEeOWnxZBqvR_zwjWoo&index=1)
+
+
+
+# 三角形的重心坐标
+
+#### 0.why
+
+重心坐标在图形学中有很多应用，比如各种颜色、法线的差值，比如判断一个点是否在三角形中等等。
+
+#### 1.What
+
+给定三角形的三点坐标A, B, C，则平面上的任意一点P应该都可以写成如下形式的三个点的线性组合
+$$
+P=\alpha A+\beta B +\gamma C\\
+1=\alpha+\beta +\gamma
+$$
+
+#### 2.How
+
+##### 2.1定义求解
+
+考虑二维坐标下，已知P点与三角形ABC坐标，那么根据定义，我们有以下三个等式
+$$
+x_P=\alpha x_A+\beta x_B +\gamma x_C\\
+y_P=\alpha y_A+\beta y_B +\gamma y_C\\
+1=\alpha+\beta +\gamma
+$$
+写成矩阵形式即有以下内容
+$$
+\begin{bmatrix}
+x_P \\
+y_P \\
+1
+\end{bmatrix}
+=
+\begin{bmatrix}
+x_A&x_B&x_C\\
+y_A&y_B&y_C\\
+1&1&1
+\end{bmatrix}
+\begin{bmatrix}
+\alpha \\
+\beta \\
+\gamma
+\end{bmatrix} 
+$$
+可解得
+$$
+\begin{bmatrix}
+\alpha \\
+\beta \\
+\gamma
+\end{bmatrix} 
+=
+\begin{bmatrix}
+x_A&x_B&x_C\\
+y_A&y_B&y_C\\
+1&1&1
+\end{bmatrix}^{-1}
+\begin{bmatrix}
+x_P \\
+y_P \\
+1
+\end{bmatrix}
+$$
+由于三角形不可退化，这个矩阵一定有逆
+
+##### 2.2几何求解
+
+P点可以分别与三角形中的另两个点组成一个新的三角形，因此可以用新三角形的面积来求解重心坐标。规定正方向后，允许面积有符号。
+$$
+S=S_A+S_B+S_C
+$$
+此时重心坐标如下
+$$
+\begin{cases}
+\alpha =  \frac {S_A}{S_A+S_B+S_C}\\
+\beta =  \frac {S_B}{S_A+S_B+S_C}\\
+\gamma =  \frac {S_C}{S_A+S_B+S_C}
+\end{cases}
+$$
+代入三角形有符号面积公式
+$$
+\begin{cases}
+S_A=|BC,BP|\\
+S_B=|AP,AC|\\
+S_C=|BC,BP|
+\end{cases}
+$$
+可以得到如下结果
+$$
+\gamma = \frac{(y_a - y_b)x + (x_b - x_a)y + x_a y_b - x_b y_a}{(y_a - y_b)x_c + (x_b - x_a)y_c + x_a y_b - x_b y_a}.\\
+\beta = \frac{(y_a - y_c)x + (x_c - x_a)y + x_a y_c - x_c y_a}{(y_a - y_c)x_b + (x_c - x_a)y_b + x_a y_c - x_c y_a},\\
+\alpha = 1 - \beta - \gamma.
+$$
