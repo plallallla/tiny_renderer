@@ -1,7 +1,6 @@
 #include "geometry.hpp"
 #include "model.hpp"
 #include "tgaimage.hpp"
-#include <cmath>
 
 constexpr auto height = 800;
 constexpr auto width = 800;
@@ -108,7 +107,8 @@ int main()
 {
     TGAImage framebuffer(width, height, TGAImage::RGB);
     std::vector<double> zbuffer(width*height, -std::numeric_limits<double>::max());
-    Model model{"../obj/diablo3_pose/diablo3_pose.obj"};
+    Model model("../obj/african_head/african_head.obj");
+    // Model model{"../obj/diablo3_pose/diablo3_pose.obj"};
 
     lookat(eye, center, up);
     perspective(norm(eye - center));
@@ -125,10 +125,11 @@ int main()
             clip[d] = Perspective_M * Model_View_M * vec4{v.x, v.y, v.z, 1.};
         }
         TGAColor rnd;
-        for (int c=0; c<3; c++) rnd[c] = std::rand() % 255;
+        for (int c=0; c<3; c++)
         {
-            rasterize(clip, zbuffer, framebuffer, rnd); // rasterize the primitive
+            rnd[c] = std::rand() % 255;
         }
+        rasterize(clip, zbuffer, framebuffer, rnd); // rasterize the primitive
     }
     framebuffer.write_tga_file("frame_img.tga");
     system("open frame_img.tga");

@@ -8,6 +8,6 @@ add_executable(line part_1_line/main.cpp)
 add_executable(triangle part_2_triangle/main.cpp)
 add_executable(zbuffer part_3_zbuffer/main.cpp)
 add_executable(camera part_4_camera/main.cpp)
-add_executable(shading part_5_shading/main.cpp)
+add_executable(shading part_5_shading/main.cpp part_5_shading/my_gl.cpp)
 
 

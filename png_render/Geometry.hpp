@@ -1,12 +1,13 @@
 #pragma once
-#include <glm/glm.hpp>
 #include <array>
+#include <glm/glm.hpp>
 
 /**
-包围盒类
+包围盒
 */
 class BoundingBox
 {
+  public:
     BoundingBox() = default;
     BoundingBox(const glm::vec3& a, const glm::vec3& b) : min(a), max(b)
     {
@@ -79,7 +80,7 @@ class BoundingBox
 };
 
 /**
-平面类
+平面
 */
 class Plane
 {
@@ -178,3 +179,107 @@ class Plane
     glm::vec3 _normal;
     float _d = 0;
 };
+
+/**
+视锥
+*/
+struct Frustum
+{
+  public:
+    /* 包围盒是否在视锥内 */
+    bool intersects(const BoundingBox& box) const
+    {
+        if (!bbox.intersects(box))
+        {
+            return false;
+        }
+        for (auto plane : planes)
+        {
+            if (plane.intersects(box))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /* 某一点是否在视锥内 */
+    bool intersects(const glm::vec3& p0) const
+    {
+        for (auto& plane : planes)
+        {
+            if (plane.intersects(p0) == Plane::Intersects_Back)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /* 线段是否在视锥内 */
+    bool intersects(const glm::vec3& p0, const glm::vec3& p1) const
+    {
+        for (auto& plane : planes)
+        {
+            if (plane.intersects(p0, p1) == Plane::Intersects_Back)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /* 三角形是否在视锥内 */
+    bool intersects(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2) const
+    {
+        for (auto& plane : planes)
+        {
+            if (plane.intersects(p0, p1, p2) == Plane::Intersects_Back)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+  public:
+    /**
+     * planes[0]: near;
+     * planes[1]: far;
+     * planes[2]: top;
+     * planes[3]: bottom;
+     * planes[4]: left;
+     * planes[5]: right;
+     */
+    std::array<Plane, 6> planes;
+    /**
+     * corners[0]: nearTopLeft;
+     * corners[1]: nearTopRight;
+     * corners[2]: nearBottomLeft;
+     * corners[3]: nearBottomRight;
+     * corners[4]: farTopLeft;
+     * corners[5]: farTopRight;
+     * corners[6]: farBottomLeft;
+     * corners[7]: farBottomRight;
+     */
+    std::array<glm::vec3, 8> corners;
+    BoundingBox bbox;
+};
+
+enum FrustumClipMask
+{
+    POSITIVE_X = 1 << 0,
+    NEGATIVE_X = 1 << 1,
+    POSITIVE_Y = 1 << 2,
+    NEGATIVE_Y = 1 << 3,
+    POSITIVE_Z = 1 << 4,
+    NEGATIVE_Z = 1 << 5,
+};
+
+const std::array<int, 6> FrustumClipMaskArray{
+    FrustumClipMask::POSITIVE_X, FrustumClipMask::NEGATIVE_X, FrustumClipMask::POSITIVE_Y,
+    FrustumClipMask::NEGATIVE_Y, FrustumClipMask::POSITIVE_Z, FrustumClipMask::NEGATIVE_Z,
+};
+
+const std::array<glm::vec4, 6> FrustumClipPlane{glm::vec4{-1, 0, 0, 1}, glm::vec4{1, 0, 0, 1},  glm::vec4{0, -1, 0, 1},
+                                                glm::vec4{0, 1, 0, 1},  glm::vec4{0, 0, -1, 1}, glm::vec4{0, 0, 1, 1}};
