@@ -13,6 +13,7 @@ class Model {
     std::vector<int> facet_tex = {}; //  ┘ nfaces()*3
     TGAImage diffusemap  = {};       // diffuse color texture
     TGAImage normalmap   = {};       // normal map texture
+    TGAImage tangent_normalmap   = {};       // normal map texture
     TGAImage specularmap = {};       // specular texture
 public:
     Model(const std::string filename);
@@ -22,6 +23,7 @@ public:
     vec4 vert(const int iface, const int nthvert) const;   // 0 <= iface <= nfaces(), 0 <= nthvert < 3
     vec4 normal(const int iface, const int nthvert) const; // normal coming from the "vn x y z" entries in the .obj file
     vec4 normal(const vec2 &uv) const;                     // normal vector from the normal map texture
+    vec4 tangent_normal(const vec2 &uv) const;                     // normal vector from the normal map texture
     vec2 uv(const int iface, const int nthvert) const;     // uv coordinates of triangle corners
     const TGAImage& diffuse() const;
     const TGAImage& specular() const;
@@ -75,7 +77,7 @@ Model::Model(const std::string filename) {
         std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
     };
     load_texture("_diffuse.tga",    diffusemap );
-    // load_texture("_nm_tangent.tga", normalmap);
+    load_texture("_nm_tangent.tga", tangent_normalmap);
     load_texture("_nm.tga", normalmap);
     load_texture("_spec.tga",       specularmap);
 }
@@ -97,6 +99,11 @@ vec4 Model::normal(const int iface, const int nthvert) const {
 
 vec4 Model::normal(const vec2 &uv) const {
     TGAColor c = normalmap.get(uv[0]*normalmap.width(), uv[1]*normalmap.height());
+    return normalized(vec4{(double)c[2],(double)c[1],(double)c[0],0}*2./255. - vec4{1,1,1,0});
+}
+
+vec4 Model::tangent_normal(const vec2 &uv) const {
+    TGAColor c = tangent_normalmap.get(uv[0]*tangent_normalmap.width(), uv[1]*tangent_normalmap.height());
     return normalized(vec4{(double)c[2],(double)c[1],(double)c[0],0}*2./255. - vec4{1,1,1,0});
 }
 
