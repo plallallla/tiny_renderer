@@ -6,13 +6,17 @@
 #include <algorithm>
 #include <array>
 
-struct smoothShader : public BaseShader
+/**
+ * @brief 通过顶点法线差值实现的平滑渲染
+ * 
+ */
+struct SmoothShader : public BaseShader
 {
     Model model;
     vec3 l{1, 1, 1};
     std::array<vec3, 3> tri;
     vec3 varying_nrm[3]; // normal per vertex to be interpolated by the fragment shader
-    smoothShader(const Model& m) : model(m) 
+    SmoothShader(const Model& m) : model(m) 
     {
     }
     virtual vec4 vertex(const int face, const int vert) override
@@ -26,7 +30,6 @@ struct smoothShader : public BaseShader
     virtual std::pair<bool, TGAColor> fragment(const vec3 bar) const override
     {
         TGAColor base_color{255, 255, 255, 255};
-        // vec3 n = normalized(cross(tri[1] - tri[0], tri[2] - tri[0]));
         vec3 n = normalized(varying_nrm[0] * bar[0] +
                             varying_nrm[1] * bar[1] +
                             varying_nrm[2] * bar[2]);             // per-vertex normal interpolation

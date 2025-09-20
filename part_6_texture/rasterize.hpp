@@ -8,6 +8,13 @@ mat<4, 4> ModelView, Perspective, Viewport;
 // 深度缓存
 std::vector<double> zbuffer;
 
+/**
+ * @brief 光栅化函数 模拟渲染管线流程
+ * 
+ * @param clip 裁剪空间坐标
+ * @param shader 着色器对象
+ * @param framebuffer 渲染上下文
+ */
 inline void rasterize(const Triangle& clip, const BaseShader& shader, TGAImage& framebuffer)
 {
     vec4 ndc[3] = 

@@ -1,5 +1,6 @@
 #include "PhongShader.hpp"
-#include "smoothShader.hpp"
+#include "SmoothShader.hpp"
+#include "TextureShader.hpp"
 
 
 extern mat<4,4> ModelView, Viewport, Perspective; // "OpenGL" state matrices
@@ -48,7 +49,8 @@ int main()
 
     Model model("../obj/african_head/african_head.obj");
     // PhongShader shader{ model };
-    smoothShader shader{ model };
+    // SmoothShader shader{ model };
+    TextureShader shader{ model };
 
     TGAImage framebuffer(width, height, TGAImage::RGB, {177, 195, 209, 255});
 

@@ -24,12 +24,10 @@ struct PhongShader : public BaseShader
     {
         TGAColor base_color{255, 255, 255, 255};
         vec3 n = normalized(cross(tri[1] - tri[0], tri[2] - tri[0]));//面向量
-        vec3 r = normalized(n * (n * l) * 2 - l);//反射光向量
-        vec3 v = vec3{0,0,1};
+        vec3 v = vec3{0,1,1};
         vec3 h = normalized(v + l);
         double ambient = .3;
         double diff = std::max(0., n * l);
-        // double spec = std::pow(std::max(r.z, 0.), 35);
         double spec = std::pow(std::max(n*h, 0.), 35);//半程向量计算
         for (int channel : {0, 1, 2}) 
         {
