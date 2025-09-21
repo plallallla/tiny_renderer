@@ -17,3 +17,4 @@ file(GLOB P_7_SRC "part_7_tangent/*.cpp")
 add_executable(tangent ${P_7_SRC})
 
 
+add_executable(tiny_renderer tiny_renderer/main.cpp)
