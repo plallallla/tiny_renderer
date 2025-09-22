@@ -2,5 +2,6 @@ build/
 .cache/
 .vscode/
 
+CMakeFiles
 
 .DS_Store
