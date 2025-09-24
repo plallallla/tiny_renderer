@@ -16,5 +16,8 @@ add_executable(texture ${P_6_SRC})
 file(GLOB P_7_SRC "part_7_tangent/*.cpp")
 add_executable(tangent ${P_7_SRC})
 
+file(GLOB P_8_SRC "part_8_shadow/*.cpp")
+add_executable(shadow ${P_8_SRC})
+
 
 add_executable(tiny_renderer tiny_renderer/main.cpp)
