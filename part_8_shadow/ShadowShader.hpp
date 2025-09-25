@@ -1,17 +1,23 @@
 #include "BaseShader.h"
 #include "Rasterize.hpp"
 #include "model.hpp"
+#include "tgaimage.hpp"
+#include <bit>
 
-class TangentShader : public BaseShader
+class ShadowShader : public BaseShader
 {
     Model _m;
     vec4 _l{ModelView*vec4{1,1,1,0.}};              // light direction in eye coordinates
     vec2 varying_uv[3]; // triangle uv coordinates, written by the vertex shader, read by the fragment shader
     vec4 varying_nrm[3]; // normal per vertex to be interpolated by the fragment shader
     vec4 tri[3];         // triangle in view coordinates
+    mat<4, 4> _N;   //perspective * MV_light
+    vec4 lig[3];    //光源视角下的空间坐标
+    std::vector<double> _shadowmap;
 
 public:
-    TangentShader(const Model& m) : _m(m)
+    ShadowShader(const Model& m, const std::vector<double>& shadowmap, const mat<4, 4>& N) :
+    _m{m}, _shadowmap{shadowmap}, _N{N}
     {
     }
 
@@ -26,10 +32,11 @@ public:
         varying_nrm[vert] = ModelView.invert_transpose() * _m.normal(face, vert);
         vec4 gl_Position = ModelView * _m.vert(face, vert);
         tri[vert] = gl_Position;
-        return Perspective * gl_Position;                         // in clip coordinates
+        lig[vert] = _N * _m.vert(face, vert);
+        return Perspective * gl_Position;
     }
 
-    virtual std::pair<bool, TGAColor> fragment(const vec3 bc) const
+    TGAColor phongColor(const vec3 bc) const
     {
         mat<2,4> E = { tri[1]-tri[0], tri[2]-tri[0] };
         mat<2,2> U = { varying_uv[1]-varying_uv[0], varying_uv[2]-varying_uv[0] };
@@ -46,8 +53,34 @@ public:
         double specular = (3.*sample2D(_m.specular(), uv)[0]/255.) * std::pow(std::max(r.z, 0.), 35);  // specular intensity, note that the camera lies on the z-axis (in eye coordinates), therefore simple r.z, since (0,0,1)*(r.x, r.y, r.z) = r.z
         TGAColor gl_FragColor = sample2D(_m.diffuse(), uv);
         for (int channel : {0,1,2})
+        {
             gl_FragColor[channel] = std::min<int>(255, gl_FragColor[channel]*(ambient + diffuse + specular));
-        return {false, gl_FragColor};     
+        }
+        return gl_FragColor;
+    }
+
+    TGAColor shadowColor(const vec3 bc, TGAColor origin) const
+    {
+        vec4 lig_pos_ = lig[0] * bc[0] + lig[1] * bc[1] + lig[2] * bc[2];
+        auto lig_pos = lig_pos_.xyz()/lig_pos_.w;
+        double z_real = lig_pos.z;
+        int x = (int)lig_pos.x;
+        int y = (int)lig_pos.y;
+        if (0 <= x && x < 800 && 0<= y && y < 800 && z_real < _shadowmap[x + y*800] - .03)
+        {
+            vec3 a = {(double)origin[0], (double)origin[1], (double)origin[2]};
+            if (norm(a) >= 80)
+            {
+                a = normalized(a) * 80;
+                return {(std::uint8_t)a[0], (std::uint8_t)a[1], (std::uint8_t)a[2], 255};
+            }
+        }
+        return origin;
+    }
+
+    virtual std::pair<bool, TGAColor> fragment(const vec3 bc) const
+    {
+        return {false, shadowColor(bc, phongColor(bc))};     
     }
 
 

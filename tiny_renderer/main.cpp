@@ -16,6 +16,8 @@ constexpr vec3 center{ 0, 0, 0};
 constexpr vec3 up{ 0, 1, 0};
 vector<double> depth(width * height, -1000.0);
 
+using scene = vector<Model>;
+
 struct Uniform
 {
     mat<4, 4> ModelView;

@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     framebuffer.set(bx, by, white);
     framebuffer.set(cx, cy, white);
 
-    framebuffer.write_tga_file("lesson_1/framebuffer.tga");
-    system("open lesson_1/framebuffer.tga");
+    framebuffer.write_tga_file("framebuffer.tga");
+    system("open framebuffer.tga");
     return 0;
 }
