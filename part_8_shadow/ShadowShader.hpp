@@ -1,8 +1,11 @@
 #include "BaseShader.h"
 #include "Rasterize.hpp"
+#include "geometry.hpp"
 #include "model.hpp"
 #include "tgaimage.hpp"
-#include <bit>
+extern std::array<int, 2> screen_xy;
+
+std::vector<double> shadowmap=std::vector<double>(800 * 800, -1000.);
 
 class ShadowShader : public BaseShader
 {
@@ -33,7 +36,7 @@ public:
         vec4 gl_Position = ModelView * _m.vert(face, vert);
         tri[vert] = gl_Position;
         lig[vert] = _N * _m.vert(face, vert);
-        return Perspective * gl_Position;
+        return Perspective * ModelView * _m.vert(face, vert);
     }
 
     TGAColor phongColor(const vec3 bc) const
@@ -61,20 +64,26 @@ public:
 
     TGAColor shadowColor(const vec3 bc, TGAColor origin) const
     {
-        vec4 lig_pos_ = lig[0] * bc[0] + lig[1] * bc[1] + lig[2] * bc[2];
-        auto lig_pos = lig_pos_.xyz()/lig_pos_.w;
-        double z_real = lig_pos.z;
-        int x = (int)lig_pos.x;
-        int y = (int)lig_pos.y;
-        if (0 <= x && x < 800 && 0<= y && y < 800 && z_real < _shadowmap[x + y*800] - .03)
+        vec2 screen[3] = 
+        {
+            (Viewport * lig[0]).xy(), 
+            (Viewport * lig[1]).xy(), 
+            (Viewport * lig[2]).xy()
+        };
+        int x = (int)(bc*vec3{screen[0].x,screen[1].x,screen[2].x});
+        int y = (int)(bc*vec3{screen[0].y,screen[1].y,screen[2].y});
+        double z_real = bc * vec3{lig[0].z,lig[1].z,lig[2].z};
+        if ((0 <= x && x < 800 && 0<= y && y < 800) && z_real < _shadowmap[x + y*800] - .03)
         {
             vec3 a = {(double)origin[0], (double)origin[1], (double)origin[2]};
             if (norm(a) >= 80)
             {
                 a = normalized(a) * 80;
-                return {(std::uint8_t)a[0], (std::uint8_t)a[1], (std::uint8_t)a[2], 255};
+                // return {(std::uint8_t)a[0], (std::uint8_t)a[1], (std::uint8_t)a[2], 255};
+                return {0,0,0,0};
             }
         }
+        return {255,255,255,0};
         return origin;
     }
 

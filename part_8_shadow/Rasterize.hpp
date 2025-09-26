@@ -8,6 +8,8 @@ mat<4, 4> ModelView, Perspective, Viewport;
 // 深度缓存
 std::vector<double> zbuffer;
 
+std::array<int, 2> screen_xy;
+
 /**
  * @brief 光栅化函数 模拟渲染管线流程
  * 
@@ -49,6 +51,7 @@ inline void rasterize(const Triangle& clip, const BaseShader& shader, TGAImage& 
     { // clip the bounding box by the screen
         for (int y = std::max<int>(bby.first, 0); y <= std::min<int>(bby.second, framebuffer.height() - 1); y++)
         {
+            screen_xy = {x,y};
             vec3 bc = ABC.invert_transpose() * vec3{static_cast<double>(x), static_cast<double>(y), 1.}; // barycentric coordinates of {x,y} w.r.t the triangle
             if (bc.x < 0 || bc.y < 0 || bc.z < 0)
             {

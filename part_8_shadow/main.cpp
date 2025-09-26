@@ -8,6 +8,9 @@
 extern mat<4, 4> ModelView, Viewport, Perspective; // "OpenGL" state matrices
 extern std::vector<double> zbuffer;                // the depth buffer
 
+extern std::vector<double> shadowmap;
+
+
 mat<4, 4> lookat(const vec3 eye, const vec3 center, const vec3 up)
 {
     vec3 n = normalized(eye - center);
@@ -100,6 +103,7 @@ void Shadow_render(const Model& model, const std::vector<double>& shadowmap, con
         Triangle clip = {shader.vertex(f, 0), shader.vertex(f, 1), shader.vertex(f, 2)};
         rasterize(clip, shader, framebuffer);
     }
+    return;
 }
 
 int main()
@@ -115,6 +119,7 @@ int main()
     constexpr vec3 center{0, 0, 0};
     constexpr vec3 up{0, 1, 0};
 
+    // constexpr vec3 light{-1, 1, 1};
     constexpr vec3 light{1, 1, 1};
 
     std::vector<bool> mask(width * height, false);
@@ -136,7 +141,7 @@ int main()
     auto ligMatrix = Perspective * ModelView;
 
     save_zbuffer("zbuffer_1.tga", lig_zbuffer, width, height);
-    // system("open zbuffer_1.tga");
+    system("open zbuffer_1.tga");
 
     // step2 从相机视角出发渲染进行真正的渲染
     ModelView = lookat(eye, center, up);
@@ -147,87 +152,90 @@ int main()
     shadowbuffer.write_tga_file("shadowbuffer.tga");
     system("open shadowbuffer.tga");
 
-    // orign---20250925
-    TGAImage framebuffer(width, height, TGAImage::RGB, {177, 195, 209, 255});
-    ModelView = lookat(eye, center, up);
-    Perspective = init_perspective(norm(eye - center));
-    Viewport = init_viewport(shadow_w / 16, shadow_h / 16, shadow_w * 7 / 8, shadow_h * 7 / 8);
-    zbuffer = init_zbuffer(shadow_w, shadow_h);
-    tangent_render(diablo, framebuffer);
-    tangent_render(floor, framebuffer);
-    framebuffer.write_tga_file("framebuffer.tga");
-    // system("open framebuffer.tga");
-
-    mat<4, 4> M = (Viewport * Perspective * ModelView).invert();
-
-    ModelView = lookat(light, center, up);
-    Perspective = init_perspective(norm(eye - center));
-    Viewport = init_viewport(shadow_w / 16, shadow_h / 16, shadow_w * 7 / 8, shadow_h * 7 / 8);
-    auto zbuffer_copy = zbuffer;
-    save_zbuffer("zbuffer_1.tga", zbuffer, width, height);
-    // system("open zbuffer_1.tga");
-    zbuffer = init_zbuffer(shadow_w, shadow_h);
-
-    {
-        TGAImage trash(shadow_w, shadow_h, TGAImage::RGB, {177, 195, 209, 255});
-        blank_render(diablo, trash);
-        blank_render(floor, trash);
-        trash.write_tga_file("trash.tga");
-        // system("open trash.tga");
-    }
-    save_zbuffer("zbuffer_2.tga", zbuffer, width, height);
+    // save_zbuffer("zbuffer_2.tga", shadowmap, width, height);
     // system("open zbuffer_2.tga");
 
-    mat<4, 4> N = Viewport * Perspective * ModelView; // 基于light视角的顶点着色矩阵
+    // orign---20250925
+    // TGAImage framebuffer(width, height, TGAImage::RGB, {177, 195, 209, 255});
+    // ModelView = lookat(eye, center, up);
+    // Perspective = init_perspective(norm(eye - center));
+    // Viewport = init_viewport(shadow_w / 16, shadow_h / 16, shadow_w * 7 / 8, shadow_h * 7 / 8);
+    // zbuffer = init_zbuffer(shadow_w, shadow_h);
+    // tangent_render(diablo, framebuffer);
+    // tangent_render(floor, framebuffer);
+    // framebuffer.write_tga_file("framebuffer.tga");
+    // // system("open framebuffer.tga");
 
-    for (int x = 0; x < width; x++)
-    {
-        for (int y = 0; y < height; y++)
-        {
-            vec4 fragment = M * vec4{(double)x, (double)y, zbuffer_copy.at(x + y * width), 1.};
-            vec4 q = N * fragment;
-            vec3 p = q.xyz() / q.w;
-            mask[x + y * width] = (
-                fragment.z < -100 || (p.x < 0 || p.x >= shadow_w || p.y < 0 || p.y > shadow_h)
-                || (p.z > zbuffer[int(p.x) + int(p.y) * shadow_w] - .03));
-        }
-    }
+    // mat<4, 4> M = (Viewport * Perspective * ModelView).invert();
 
-    TGAImage maskimg(width, height, TGAImage::GRAYSCALE);
-    for (int x = 0; x < width; x++)
-    {
-        for (int y = 0; y < height; y++)
-        {
-            if (!mask[x + y * height])
-            {
-                continue;
-            }
-            maskimg.set(x, y, {255, 255, 255, 255});
-        }
-    }
-    maskimg.write_tga_file("mask.tga");
-    // system("open mask.tga");
+    // ModelView = lookat(light, center, up);
+    // Perspective = init_perspective(norm(eye - center));
+    // Viewport = init_viewport(shadow_w / 16, shadow_h / 16, shadow_w * 7 / 8, shadow_h * 7 / 8);
+    // auto zbuffer_copy = zbuffer;
+    // save_zbuffer("zbuffer_1.tga", zbuffer, width, height);
+    // // system("open zbuffer_1.tga");
+    // zbuffer = init_zbuffer(shadow_w, shadow_h);
 
-    for (int x = 0; x < width; x++)
-    {
-        for (int y = 0; y < height; y++)
-        {
-            if (mask[x + y * height])
-            {
-                continue;
-            }
-            TGAColor c = framebuffer.get(x, y);
-            vec3 a = {(double)c[0], (double)c[1], (double)c[2]};
-            if (norm(a) < 80)
-            {
-                continue;
-            }
-            a = normalized(a) * 80;
-            framebuffer.set(x, y, {(std::uint8_t)a[0], (std::uint8_t)a[1], (std::uint8_t)a[2], 255});
-        }
-    }
-    framebuffer.write_tga_file("shadow.tga");
-    system("open shadow.tga");
+    // {
+    //     TGAImage trash(shadow_w, shadow_h, TGAImage::RGB, {177, 195, 209, 255});
+    //     blank_render(diablo, trash);
+    //     blank_render(floor, trash);
+    //     trash.write_tga_file("trash.tga");
+    //     // system("open trash.tga");
+    // }
+    // save_zbuffer("zbuffer_2.tga", zbuffer, width, height);
+    // // system("open zbuffer_2.tga");
+
+    // mat<4, 4> N = Viewport * Perspective * ModelView; // 基于light视角的顶点着色矩阵
+
+    // for (int x = 0; x < width; x++)
+    // {
+    //     for (int y = 0; y < height; y++)
+    //     {
+    //         vec4 fragment = M * vec4{(double)x, (double)y, zbuffer_copy.at(x + y * width), 1.};
+    //         vec4 q = N * fragment;
+    //         vec3 p = q.xyz() / q.w;
+    //         mask[x + y * width] = (
+    //             fragment.z < -100 || (p.x < 0 || p.x >= shadow_w || p.y < 0 || p.y > shadow_h)
+    //             || (p.z > zbuffer[int(p.x) + int(p.y) * shadow_w] - .03));
+    //     }
+    // }
+
+    // TGAImage maskimg(width, height, TGAImage::GRAYSCALE);
+    // for (int x = 0; x < width; x++)
+    // {
+    //     for (int y = 0; y < height; y++)
+    //     {
+    //         if (!mask[x + y * height])
+    //         {
+    //             continue;
+    //         }
+    //         maskimg.set(x, y, {255, 255, 255, 255});
+    //     }
+    // }
+    // maskimg.write_tga_file("mask.tga");
+    // // system("open mask.tga");
+
+    // for (int x = 0; x < width; x++)
+    // {
+    //     for (int y = 0; y < height; y++)
+    //     {
+    //         if (mask[x + y * height])
+    //         {
+    //             continue;
+    //         }
+    //         TGAColor c = framebuffer.get(x, y);
+    //         vec3 a = {(double)c[0], (double)c[1], (double)c[2]};
+    //         if (norm(a) < 80)
+    //         {
+    //             continue;
+    //         }
+    //         a = normalized(a) * 80;
+    //         framebuffer.set(x, y, {(std::uint8_t)a[0], (std::uint8_t)a[1], (std::uint8_t)a[2], 255});
+    //     }
+    // }
+    // framebuffer.write_tga_file("shadow.tga");
+    // system("open shadow.tga");
 
     return 0;
 }
