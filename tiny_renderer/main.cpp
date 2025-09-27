@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <utility>
 #include <vector>
+#include <random>
 
 using namespace std;
 using Triangle4 = array<vec4, 3>;
@@ -302,6 +303,54 @@ void apply_shadowmap(const vector<double>& shadowmap, TGAImage& framebuffer)
     }
 }
 
+void ssao(TGAImage& framebuffer)
+{
+    constexpr double ao_radius = .1;  // ssao ball radius in normalized device coordinates
+    constexpr int nsamples = 128;     // number of samples in the ball
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> dist(-ao_radius, ao_radius);
+    auto smoothstep = [](double edge0, double edge1, double x) 
+    {         // smoothstep returns 0 if the input is less than the left edge,
+        double t = std::max(0.0, std::min(1.0, (x - edge0)/(edge1 - edge0)));  // 1 if the input is greater than the right edge,
+        return t*t*(3 - 2*t);                                        // Hermite interpolation inbetween. The derivative of the smoothstep function is zero at both edges.
+    };
+
+#pragma omp parallel for
+    for (int x=0; x<width; x++) 
+    {
+        for (int y=0; y<height; y++) 
+        {
+            double z = depth[x+y*width];
+            if (z < -100)
+            {
+                continue;
+            }
+            vec4 fragment = uniform.Viewport.invert() * vec4{(double)x, (double)y, z, 1.};
+            double vote = 0;
+            double voters = 0;
+            for(int i = 0; i < nsamples; i++) 
+            {
+                vec4 p = uniform.Viewport * (fragment + vec4{dist(gen), dist(gen), dist(gen), 0.});
+                if (p.x<0 || p.x>=width || p.y<0 || p.y>=height)
+                {
+                    continue;
+                }
+                double d = depth[int(p.x) + int(p.y)*width];
+                if (z + 5 * ao_radius < d)// range check to remove the dark halo
+                {
+                    continue;
+                }
+                voters++;
+                vote += d > p.z;
+            }
+            double ssao = smoothstep(0, 1, 1 - (vote / voters) * .4);
+            TGAColor c = framebuffer.get(x, y);
+            framebuffer.set(x, y, { (std::uint8_t)(c[0]*ssao), (std::uint8_t)(c[1]*ssao), (std::uint8_t)(c[2]*ssao), c[3] });
+        }
+    }
+}
+
 // 渲染
 void render(const Models& models, TGAImage& buffer)
 {
@@ -333,6 +382,8 @@ int main()
     render(m, buffer);
     //应用shadow蒙版
     apply_shadowmap(shadowmap, buffer);
+    //应用环境光遮蔽
+    ssao(buffer);
     //保存渲染结果
     buffer.write_tga_file("tiny_renderer_buffer.tga");
     system("open tiny_renderer_buffer.tga");
