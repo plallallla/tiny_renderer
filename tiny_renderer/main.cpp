@@ -8,9 +8,11 @@
 using namespace std;
 using Triangle4 = array<vec4, 3>;
 using Triangle2 = array<vec2, 3>;
+using Models = vector<Model>;
 
 constexpr auto height = 800;
 constexpr auto width = 800;
+constexpr vec3 light{1, 1, 1};
 constexpr vec3 eye{-1, 0, 2};
 constexpr vec3 center{ 0, 0, 0};
 constexpr vec3 up{ 0, 1, 0};
@@ -78,18 +80,18 @@ struct Shader
     }
 };
 
-// 设置变换矩阵
-mat<4, 4> get_modelview()
+// 设置变换矩阵 lookat函数
+mat<4, 4> get_modelview(const vec3& _eye, const vec3& _up, const vec3& _center)
 {
-        mat<4, 4> model =
+    mat<4, 4> model =
     {
         1.,0.,0.,0.,
         0.,1.,0.,0.,
         0.,0.,1.,0.,
         0.,0.,0.,1.,
     };
-    vec3 n = normalized(eye - center);
-    vec3 l = normalized(cross(up, n));
+    vec3 n = normalized(_eye - _center);
+    vec3 l = normalized(cross(_up, n));
     vec3 m = normalized(cross(n, l));
     mat<4, 4> view =
     {
@@ -102,9 +104,9 @@ mat<4, 4> get_modelview()
 }
 
 // 透视矩阵
-mat<4, 4> get_perspective()
+mat<4, 4> get_perspective(const vec3& _eye)
 {
-    auto f = norm(eye - center);
+    auto f = norm(_eye - center);
     return
     {
         1.,0.,0.,0.,
@@ -188,11 +190,11 @@ void rasterize(const Triangle4& t, Shader& s, TGAImage& b)
             }
             // 插值得到深度z值，进行深度测试，缓存z值
             double z = bc * vec3{ndc[0].z, ndc[1].z, ndc[2].z};
-            if (z <= depth[x * width + y])
+            if (z <= depth[x + y * width])
             {
                 continue;
             }
-            depth[x * width + y] = z;
+            depth[x + y * width] = z;
             //绘制
             auto frag_result = s.fragment(bc);
             if (frag_result.first)
@@ -203,28 +205,235 @@ void rasterize(const Triangle4& t, Shader& s, TGAImage& b)
     }
 }
 
-// 渲染
-void render(const Model& model, TGAImage& buffer)
+//只记录深度的渲染 用于shadowmap的生成
+void rasterize(const Triangle4& t, Shader& s, vector<double>& shadow_depth)
 {
-    uniform.ModelView = get_modelview();
-    uniform.Perspective = get_perspective();
-    uniform.Viewport = get_viewport();
-    Shader shader{ model };
-    for (int i = 0; i < model.nfaces(); i++)
+    // 归一化坐标
+    Triangle4 ndc{t[0] / t[0].w, t[1] / t[1].w, t[2] / t[2].w};
+    // 转为屏幕坐标
+    Triangle2 screen
     {
-        Triangle4 primitive = primitive_assembly(shader.vertex(i, 0), shader.vertex(i, 1), shader.vertex(i, 2));
-        rasterize(primitive, shader, buffer);
+        (uniform.Viewport * ndc[0]).xy(), 
+        (uniform.Viewport * ndc[1]).xy(), 
+        (uniform.Viewport * ndc[2]).xy(), 
+    };
+    // 计算三角形矩阵
+    mat<3, 3> ABC = 
+    {
+        screen[0].x, screen[0].y, 1.,
+        screen[1].x, screen[1].y, 1.,
+        screen[2].x, screen[2].y, 1.
+    };
+    // 剔除背面三角形与面积过小三角形
+    if (ABC.det() < 1)
+    {
+        return;
+    }
+    // 获取包围盒
+    int left = 0, right = 0, top = 0, bottom = 0;
+    get_aabb(screen, left, right, top, bottom);
+    // 遍历包围盒
+    for (int x = left; x <= right; x++)
+    {
+        for (int y = top; y <= bottom; y++)
+        {
+            // 计算重心坐标
+            vec3 bc = ABC.invert_transpose() * vec3{static_cast<double>(x), static_cast<double>(y), 1.};
+            // 剔除不在三角形中的点
+            if (bc.x < 0 || bc.y < 0 || bc.z < 0)
+            {
+                continue;
+            }
+            // 插值得到深度z值，进行深度测试，缓存z值
+            double z = bc * vec3{ndc[0].z, ndc[1].z, ndc[2].z};
+            if (z <= shadow_depth[x + y * height])
+            {
+                continue;
+            }
+            shadow_depth[x + y * height] = z;
+        }
     }
 }
+
+//从光源视角渲染一次
+void get_shadowmap(const Models& models, vector<double>& shadow_depth)
+{
+    uniform.ModelView = get_modelview(light, up, center);
+    uniform.Perspective = get_perspective(eye);
+    uniform.Viewport = get_viewport();
+    for (auto& model : models)
+    {
+        Shader shader{ model };
+        for (int i = 0; i < model.nfaces(); i++)
+        {
+            Triangle4 primitive = primitive_assembly(shader.vertex(i, 0), shader.vertex(i, 1), shader.vertex(i, 2));
+            rasterize(primitive, shader, shadow_depth);
+        }
+    }
+}
+
+//以蒙版形式应用阴影
+void apply_shadow(const vector<double>& shadowmap, TGAImage& framebuffer)
+{
+    mat<4, 4> M = uniform.Viewport * uniform.Perspective * uniform.ModelView;
+    M = M.invert();
+    mat<4, 4> N = uniform.Viewport * get_perspective(light) * get_modelview(light, up, center);
+    for (int x = 0; x < width; x++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            vec4 fragment = M * vec4{(double)x, (double)y, depth.at(x + y * width), 1.};
+            vec4 q = N * fragment;
+            vec3 p = q.xyz() / q.w;
+            if (fragment.z < -100 || (p.x < 0 || p.x >= width || p.y < 0 || p.y > height)
+                || (p.z > shadowmap[int(p.x) + int(p.y) * width] - .03))
+            {
+                continue;
+            }
+            TGAColor c = framebuffer.get(x, y);
+            vec3 a = {(double)c[0], (double)c[1], (double)c[2]};
+            if (norm(a) < 80)
+            {
+                continue;
+            }
+            a = normalized(a) * 80;
+            framebuffer.set(x, y, {(std::uint8_t)a[0], (std::uint8_t)a[1], (std::uint8_t)a[2], 255});
+        }
+    }
+}
+
+// 渲染
+void render(const Models& models, TGAImage& buffer)
+{
+    uniform.ModelView = get_modelview(eye, up, center);
+    uniform.Perspective = get_perspective(eye);
+    uniform.Viewport = get_viewport();
+    for (auto& model : models)
+    {
+        Shader shader{ model };
+        for (int i = 0; i < model.nfaces(); i++)
+        {
+            Triangle4 primitive = primitive_assembly(shader.vertex(i, 0), shader.vertex(i, 1), shader.vertex(i, 2));
+            rasterize(primitive, shader, buffer);
+        }
+    }
+}
+
+void save_zbuffer(std::string filename, std::vector<double>& zbuffer, int width, int height)
+{
+    TGAImage zimg(width, height, TGAImage::GRAYSCALE, {0, 0, 0, 0});
+    double minz = +1000;
+    double maxz = -1000;
+    for (int x = 0; x < width; x++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            double z = zbuffer[x + y * width];
+            if (z < -100)
+            {
+                continue;
+            }
+            minz = std::min(z, minz);
+            maxz = std::max(z, maxz);
+        }
+    }
+    for (int x = 0; x < width; x++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            double z = zbuffer[x + y * width];
+            if (z < -100)
+            {
+                continue;
+            }
+            z = (z - minz) / (maxz - minz) * 255;
+            zimg.set(x, y, {(std::uint8_t)z, 255, 255, 255});
+        }
+    }
+    zimg.write_tga_file(filename);
+}
+
+void shadow_debug(const vector<double>& shadowmap)
+{
+    mat<4, 4> M = uniform.Viewport * uniform.Perspective * uniform.ModelView;
+    M = M.invert();
+    mat<4, 4> N = uniform.Viewport * uniform.Perspective * get_modelview(light, up, center);
+    vector<bool> mask(width*height, false);
+    for (int x = 0; x < width; x++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            vec4 fragment = M * vec4{(double)x, (double)y, depth.at(x + y * width), 1.};
+            vec4 q = N * fragment;
+            vec3 p = q.xyz() / q.w;
+            mask[x + y * width] = (
+                fragment.z < -100 || (p.x < 0 || p.x >= width || p.y < 0 || p.y > height)
+                || (p.z > shadowmap[int(p.x) + int(p.y) * width] - .03));
+        }
+    }
+
+    TGAImage maskimg(width, height, TGAImage::GRAYSCALE);
+    for (int x = 0; x < width; x++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            if (!mask[x + y * height])
+            {
+                continue;
+            }
+            maskimg.set(x, y, {255, 255, 255, 255});
+        }
+    }
+    maskimg.write_tga_file("mask111.tga");
+    system("open mask111.tga");
+}
+
+void get_mask(mat<4, 4> M, mat<4, 4> N, int width, int height, std::vector<double>& zbuffer_copy, std::vector<bool>& mask)
+{
+    for (int x = 0; x < width; x++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            vec4 fragment = M * vec4{(double)x, (double)y, depth.at(x + y * width), 1.};
+            vec4 q = N * fragment;
+            vec3 p = q.xyz() / q.w;
+            mask[x + y * width] = (
+                fragment.z < -100 || (p.x < 0 || p.x >= width || p.y < 0 || p.y > height)
+                || (p.z > zbuffer_copy[int(p.x) + int(p.y) * width] - .03));
+        }
+    }
+
+    TGAImage maskimg(width, height, TGAImage::GRAYSCALE);
+    for (int x = 0; x < width; x++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            if (!mask[x + y * height])
+            {
+                continue;
+            }
+            maskimg.set(x, y, {255, 255, 255, 255});
+        }
+    }
+    maskimg.write_tga_file("mask.tga");
+    system("open mask.tga");
+}
+
 
 int main()
 {
     //读取本地模型
-    // Model model("../obj/african_head/african_head.obj");
-    Model model{"../obj/diablo3_pose/diablo3_pose.obj"};
+    Models m;
+    m.emplace_back("../obj/diablo3_pose/diablo3_pose.obj");
+    m.emplace_back("../obj/floor.obj");
+    //预处理shadow
+    vector<double> shadowmap(height*width, -1000.);
+    get_shadowmap(m, shadowmap);
     //渲染
-    TGAImage buffer{height, width, TGAImage::RGB};
-    render(model, buffer);
+    TGAImage buffer{height, width, TGAImage::RGB, TGAColor{177, 195, 209, 255}};
+    render(m, buffer);
+    //应用shadow蒙版
+    apply_shadow(shadowmap, buffer);
     //保存渲染结果
     buffer.write_tga_file("tiny_renderer_buffer.tga");
     system("open tiny_renderer_buffer.tga");
