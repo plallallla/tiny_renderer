@@ -64,8 +64,8 @@ struct Shader
     double Blinn_Phong_specular(const vec2& uv, const vec4& n)
     {
         vec4 v = vec4{0,0,1,0};
-        vec4 h = normalized(v + _l);
-        return std::pow(std::max(n*h, 0.), 35);//半程向量计算
+        vec4 h = normalized(v + _l);//半程向量计算
+        return std::pow(std::max(n*h, 0.), 35);
     }
 
     // 片元着色
