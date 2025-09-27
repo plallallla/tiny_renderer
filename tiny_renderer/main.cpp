@@ -53,6 +53,21 @@ struct Shader
         return img.get(uv.x * img.width(), uv.y * img.height());
     }
 
+    // Phong模型计算镜面反射系数
+    double Phong_specular(const vec2& uv, const vec4& n)
+    {
+        vec4 r = normalized(n * (n * _l)*2 - _l);
+        return (3.*sample2D(_m.specular(), uv)[0]/255.) * std::pow(std::max(r.z, 0.), 35);
+    }
+
+    // Blinn_Phong模型计算镜面反射系数
+    double Blinn_Phong_specular(const vec2& uv, const vec4& n)
+    {
+        vec4 v = vec4{0,0,1,0};
+        vec4 h = normalized(v + _l);
+        return std::pow(std::max(n*h, 0.), 35);//半程向量计算
+    }
+
     // 片元着色
     pair<bool, TGAColor> fragment(vec3 bc)
     {
@@ -67,11 +82,13 @@ struct Shader
             {0,0,0,1}
         };
         vec2 uv = varying_uv[0] * bc[0] + varying_uv[1] * bc[1] + varying_uv[2] * bc[2];
-        vec4 n = normalized(D.transpose() * _m.tangent_normal(uv));
-        vec4 r = normalized(n * (n * _l)*2 - _l);
         double ambient  = .4;
+        vec4 n = normalized(D.transpose() * _m.tangent_normal(uv));
         double diffuse  = 1.*std::max(0., n * _l);
-        double specular = (3.*sample2D(_m.specular(), uv)[0]/255.) * std::pow(std::max(r.z, 0.), 35);
+        // double specular = Phong_specular(uv, n);
+        double specular = Blinn_Phong_specular(uv, n);
+
+        
         TGAColor gl_FragColor = sample2D(_m.diffuse(), uv);
         for (int channel : {0,1,2})
         {
