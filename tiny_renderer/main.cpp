@@ -202,23 +202,14 @@ void rasterize(const Triangle4& t, Shader& s, TGAImage& b)
             // 计算重心坐标
             vec3 bc = ABC.invert_transpose() * vec3{static_cast<double>(x), static_cast<double>(y), 1.};
             // 剔除不在三角形中的点
-            if (bc.x < 0 || bc.y < 0 || bc.z < 0)
-            {
-                continue;
-            }
+            if (bc.x < 0 || bc.y < 0 || bc.z < 0) continue;
             // 插值得到深度z值，进行深度测试，缓存z值
             double z = bc * vec3{ndc[0].z, ndc[1].z, ndc[2].z};
-            if (z <= depth[x + y * width])
-            {
-                continue;
-            }
+            if (z <= depth[x + y * width]) continue;
             depth[x + y * width] = z;
-            //绘制
+            // 绘制
             auto frag_result = s.fragment(bc);
-            if (frag_result.first)
-            {
-                b.set(x, y, frag_result.second);
-            }
+            if (frag_result.first) b.set(x, y, frag_result.second);
         }
     }
 }
@@ -363,6 +354,8 @@ void ssao(TGAImage& framebuffer)
             }
             double ssao = smoothstep(0, 1, 1 - (vote / voters) * .4);
             TGAColor c = framebuffer.get(x, y);
+            // std::uint8_t ss = ssao * 255;
+            // framebuffer.set(x, y, {ss,ss,ss});
             framebuffer.set(x, y, { (std::uint8_t)(c[0]*ssao), (std::uint8_t)(c[1]*ssao), (std::uint8_t)(c[2]*ssao), c[3] });
         }
     }
